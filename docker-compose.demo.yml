@@ -1,0 +1,153 @@
+# ============================================================
+# Sentinela — Instância de DEMONSTRAÇÃO (com dados de exemplo)
+# ------------------------------------------------------------
+# Stack isolada da instância "limpa" (docker-compose.yml): rede,
+# volume e nomes de container próprios, portas de host diferentes
+# — dá pra rodar as duas ao mesmo tempo sem conflito.
+#
+# Uso:
+#   docker compose -f docker-compose.demo.yml up -d --build
+#   (o serviço `seed` roda automaticamente e some da lista após
+#   concluir — é um job de uma vez só, não um serviço contínuo)
+#
+# Pra resetar a demo pro estado inicial a qualquer momento:
+#   docker compose -f docker-compose.demo.yml run --rm seed
+#
+# Pra derrubar tudo (mantendo os dados no volume):
+#   docker compose -f docker-compose.demo.yml down
+# Pra derrubar e apagar os dados também:
+#   docker compose -f docker-compose.demo.yml down -v
+# ============================================================
+
+# Nome de projeto fixo — sem isso, o Compose deriva o nome do projeto do
+# nome da pasta (mesma pasta do docker-compose.yml principal!) e passa a
+# tratar os dois arquivos como o MESMO projeto, recriando/substituindo os
+# containers da instância limpa pelos da demo (ou vice-versa) a cada `up`.
+name: sentinela-demo
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentinela-demo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sentinela
+      POSTGRES_PASSWORD: sentinela
+      POSTGRES_DB: sentinela
+    ports:
+      - "5443:5432"
+    volumes:
+      - postgres_data_demo:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinela -d sentinela"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentinela-demo-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: sentinela-demo-kafka
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+    ports:
+      - "9093:9092"
+      - "9645:9644" # admin API
+
+  backend:
+    build: ./backend
+    container_name: sentinela-demo-api
+    restart: unless-stopped
+    command: ["node", "dist/index.js"]
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://sentinela:sentinela@postgres:5432/sentinela
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+    ports:
+      - "4002:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  worker:
+    build: ./backend
+    container_name: sentinela-demo-worker
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    environment:
+      DATABASE_URL: postgres://sentinela:sentinela@postgres:5432/sentinela
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  # Roda sozinho a cada `docker compose ... up`: popula a base com os
+  # fornecedores de exemplo e dispara o pipeline de eventos, deixando a
+  # demo sempre pronta pra apresentação (idempotente — sempre reseta pro
+  # mesmo conjunto de dados).
+  seed:
+    build: ./backend
+    container_name: sentinela-demo-seed
+    command: ["node", "dist/seed.js"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://sentinela:sentinela@postgres:5432/sentinela
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+      worker:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    container_name: sentinela-demo-frontend
+    restart: unless-stopped
+    ports:
+      - "8089:80"
+    depends_on:
+      - backend
+
+networks:
+  default:
+    name: sentinela-demo
+
+volumes:
+  postgres_data_demo:

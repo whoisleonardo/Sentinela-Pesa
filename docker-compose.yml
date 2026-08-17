@@ -1,0 +1,138 @@
+# ============================================================
+# Sentinela — Homologação Inteligente de Fornecedores (PESA/CAT)
+# ------------------------------------------------------------
+# Nota sobre Kafka: usamos o Redpanda como broker, que fala o
+# protocolo Kafka nativamente (kafkajs conecta normalmente) e
+# roda como container único, sem depender de Zookeeper. Para
+# trocar por Kafka "oficial" (ex.: confluentinc/cp-kafka +
+# cp-zookeeper), basta substituir o serviço `redpanda` abaixo —
+# nenhuma linha do backend precisa mudar.
+# ============================================================
+
+# Nome de projeto fixo — evita que outro docker-compose*.yml na mesma
+# pasta (ex.: docker-compose.demo.yml) seja confundido com este projeto
+# e acabe recriando/substituindo estes containers.
+name: sentinela
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentinela-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sentinela
+      POSTGRES_PASSWORD: sentinela
+      POSTGRES_DB: sentinela
+    ports:
+      # host 5442 -> evita conflito com outro Postgres já usando 5432 na máquina
+      - "5442:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinela -d sentinela"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentinela-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: sentinela-kafka
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+      - "9644:9644" # admin API (útil para depurar tópicos/consumers)
+
+  backend:
+    build: ./backend
+    container_name: sentinela-api
+    restart: unless-stopped
+    command: ["node", "dist/index.js"]
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://sentinela:sentinela@postgres:5432/sentinela
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+    ports:
+      # host 4001 -> evita conflito com outro serviço já usando 4000 na máquina
+      - "4001:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  worker:
+    build: ./backend
+    container_name: sentinela-worker
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    environment:
+      DATABASE_URL: postgres://sentinela:sentinela@postgres:5432/sentinela
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  # Serviço opt-in: popula o banco com dados de demonstração e dispara
+  # o pipeline de eventos. Rode com:
+  #   docker compose --profile seed run --rm seed
+  seed:
+    build: ./backend
+    container_name: sentinela-seed
+    command: ["node", "dist/seed.js"]
+    environment:
+      DATABASE_URL: postgres://sentinela:sentinela@postgres:5432/sentinela
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKERS: redpanda:9092
+    profiles: ["seed"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    container_name: sentinela-frontend
+    restart: unless-stopped
+    ports:
+      # host 8088 -> evita conflito com outro serviço já usando 8080 na máquina
+      - "8088:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

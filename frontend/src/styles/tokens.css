@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* -------- cor: painel industrial, ancorado na marca PESA/CAT real -------- */
+  --bg-base: #0d0e10;
+  --bg-panel: #17181b;
+  --bg-panel-raised: #1f2124;
+  --bg-panel-hover: #26282c;
+  --hairline: #313338;
+  --hairline-strong: #43464c;
+
+  --accent: #f5b700; /* amarelo CAT */
+  --accent-dim: #8a6b12;
+  --accent-soft: rgba(245, 183, 0, 0.12);
+
+  --text-primary: #f2f1ed;
+  --text-secondary: #b7b6b0;
+  --text-muted: #7d7d78;
+
+  --risk-baixo: #4ca771;
+  --risk-medio: #3e8fd0;
+  --risk-alto: #e8871e;
+  --risk-critico: #e0483e;
+
+  --risk-baixo-bg: rgba(76, 167, 113, 0.14);
+  --risk-medio-bg: rgba(62, 143, 208, 0.14);
+  --risk-alto-bg: rgba(232, 135, 30, 0.14);
+  --risk-critico-bg: rgba(224, 72, 62, 0.14);
+
+  /* -------- tipografia -------- */
+  --font-display: 'Oswald', 'Arial Narrow', sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+  /* -------- layout -------- */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --sidebar-w: 232px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-base);
+  background-image:
+    radial-gradient(circle at 10% 0%, rgba(245, 183, 0, 0.05), transparent 40%),
+    radial-gradient(circle at 90% 100%, rgba(62, 143, 208, 0.04), transparent 45%);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+::selection {
+  background: var(--accent);
+  color: #17181b;
+}
+
+/* barra de rolagem discreta, à la painel */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+button {
+  font-family: var(--font-body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
