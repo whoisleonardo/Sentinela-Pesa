@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 const navItems = [
   { to: '/', label: 'Visão Geral', icon: '◈', end: true },
   { to: '/fornecedores', label: 'Fornecedores', icon: '▤' },
+  { to: '/comparativo', label: 'Comparativo', icon: '⇄' },
   { to: '/grafo', label: 'Grafo de Vínculos', icon: '⬡' },
   { to: '/precificacao', label: 'Precificação', icon: '฿' },
   { to: '/alertas', label: 'Alertas', icon: '▲' },

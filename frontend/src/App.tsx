@@ -3,6 +3,7 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Suppliers } from './pages/Suppliers';
 import { SupplierDetail } from './pages/SupplierDetail';
+import { Compare } from './pages/Compare';
 import { Graph } from './pages/Graph';
 import { Pricing } from './pages/Pricing';
 import { AlertsPage } from './pages/Alerts';
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/fornecedores" element={<Suppliers />} />
           <Route path="/fornecedores/:id" element={<SupplierDetail />} />
+          <Route path="/comparativo" element={<Compare />} />
           <Route path="/grafo" element={<Graph />} />
           <Route path="/precificacao" element={<Pricing />} />
           <Route path="/alertas" element={<AlertsPage />} />
