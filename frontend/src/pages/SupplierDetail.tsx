@@ -59,6 +59,8 @@ export function SupplierDetail() {
   const { supplier, riskHistory, documents } = data;
   const latestRisk: RiskScore | undefined = riskHistory[0];
 
+  const lastReal = esg?.history[esg.history.length - 1];
+
   const esgChartData = esg
     ? [
         ...esg.history.map((h) => ({
@@ -66,6 +68,10 @@ export function SupplierDetail() {
           real: h.score,
           projetado: null as number | null,
         })),
+        // ponte entre as duas séries: mesmo valor em `real` e `projetado` no
+        // "agora", pra a linha tracejada de projeção começar exatamente onde
+        // a linha sólida de realizado termina, sem buraco no meio do gráfico.
+        ...(lastReal ? [{ label: 'agora', real: lastReal.score, projetado: lastReal.score }] : []),
         ...esg.projection.map((p) => ({
           label: `+${p.month}m`,
           real: null as number | null,
@@ -73,6 +79,16 @@ export function SupplierDetail() {
         })),
       ]
     : [];
+
+  // Eixo Y ajustado à variação real dos dados (com folga e sem perder a
+  // meta de referência) em vez de fixo em 0-100 — numa escala de 0 a 100 a
+  // variação típica de ESG (20-30 pontos em 12 meses) fica achatada e a
+  // curva de convergência parece quase uma reta.
+  const esgValues = esgChartData.flatMap((d) => [d.real, d.projetado]).filter((v): v is number => v != null);
+  const esgYDomain: [number, number] =
+    esgValues.length > 0
+      ? [Math.max(0, Math.floor(Math.min(...esgValues) - 5)), Math.ceil(Math.max(...esgValues, 85) + 5)]
+      : [0, 100];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -151,7 +167,7 @@ export function SupplierDetail() {
             <LineChart data={esgChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--hairline)" />
               <XAxis dataKey="label" tick={{ fill: 'var(--text-secondary)', fontSize: 11.5 }} axisLine={{ stroke: 'var(--hairline)' }} tickLine={false} />
-              <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis domain={esgYDomain} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ background: 'var(--bg-panel-raised)', border: '1px solid var(--hairline-strong)', fontSize: 13 }}
                 labelStyle={{ color: 'var(--text-primary)' }}
