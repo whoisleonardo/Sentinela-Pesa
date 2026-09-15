@@ -7,6 +7,7 @@ const navItems = [
   { to: '/grafo', label: 'Grafo de Vínculos', icon: '⬡' },
   { to: '/precificacao', label: 'Precificação', icon: '฿' },
   { to: '/alertas', label: 'Alertas', icon: '▲' },
+  { to: '/material-de-apoio', label: 'Material de Apoio', icon: '?' },
 ];
 
 export function Layout({ connected }: { connected: boolean }) {

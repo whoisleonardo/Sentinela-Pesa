@@ -7,6 +7,7 @@ import { Compare } from './pages/Compare';
 import { Graph } from './pages/Graph';
 import { Pricing } from './pages/Pricing';
 import { AlertsPage } from './pages/Alerts';
+import { SupportMaterial } from './pages/SupportMaterial';
 import { useAlertStream } from './hooks/useAlertStream';
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/grafo" element={<Graph />} />
           <Route path="/precificacao" element={<Pricing />} />
           <Route path="/alertas" element={<AlertsPage />} />
+          <Route path="/material-de-apoio" element={<SupportMaterial />} />
         </Route>
       </Routes>
     </BrowserRouter>
